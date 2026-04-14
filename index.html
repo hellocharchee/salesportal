@@ -50,13 +50,23 @@
             0%, 100% { filter: drop-shadow(0 0 10px rgba(252, 163, 17, 0.2)); }
             50% { filter: drop-shadow(0 0 35px rgba(252, 163, 17, 0.7)); }
         }
+        
+        /* New Animations for the Infinite Background Grid */
+        @keyframes scroll-up {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-50%); }
+        }
+        @keyframes scroll-down {
+            0% { transform: translateY(-50%); }
+            100% { transform: translateY(0); }
+        }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useMemo } = React;
+        const { useState, useEffect, useMemo, memo } = React;
 
         // Inline SVG Icons
         const Lock = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>);
@@ -68,11 +78,57 @@
         const ChevronLeft = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m15 18-6-6 6-6"></path></svg>);
         const Sparkles = ({ className }) => (<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"></path><path d="M5 3v4"></path><path d="M19 17v4"></path><path d="M3 5h4"></path><path d="M17 19h4"></path></svg>);
 
+        // The 35 Imgur Background Images (Moved outside the App to prevent animation resets)
+        const bgImages = [
+            "https://i.imgur.com/I2uqZbk.png", "https://i.imgur.com/UNdsKaX.png", "https://i.imgur.com/m8VNq2Y.png",
+            "https://i.imgur.com/H3RC4W0.png", "https://i.imgur.com/ji18DLc.png", "https://i.imgur.com/v3XMv0q.png",
+            "https://i.imgur.com/q3VwSYT.png", "https://i.imgur.com/wX627J2.png", "https://i.imgur.com/qx7qqL6.png",
+            "https://i.imgur.com/KpvDS0T.png", "https://i.imgur.com/1t5HTtA.png", "https://i.imgur.com/agDMX4x.png",
+            "https://i.imgur.com/HHqVyM5.png", "https://i.imgur.com/Xcn9OJB.png", "https://i.imgur.com/Fp4aGzK.png",
+            "https://i.imgur.com/Uy9YzwF.png", "https://i.imgur.com/XVUARtO.png", "https://i.imgur.com/YQ56rPF.png",
+            "https://i.imgur.com/yPbhf4h.png", "https://i.imgur.com/eb9DMnY.png", "https://i.imgur.com/Khn3wAl.png",
+            "https://i.imgur.com/syeVuxZ.png", "https://i.imgur.com/3TBDWYH.png", "https://i.imgur.com/3NdFqe2.png",
+            "https://i.imgur.com/IzTz6UT.png", "https://i.imgur.com/DS5BCyt.png", "https://i.imgur.com/hJg6TxK.png",
+            "https://i.imgur.com/4fqPn38.png", "https://i.imgur.com/g5GRsPV.png", "https://i.imgur.com/bbD8a0M.png",
+            "https://i.imgur.com/yyh07Tq.png", "https://i.imgur.com/wdQmnK3.png", "https://i.imgur.com/8cduCHm.png",
+            "https://i.imgur.com/LUzVPQ3.png", "https://i.imgur.com/ShzfivS.png"
+        ];
+
+        // Infinite Scrolling Background Columns helper (Memoized to ignore text input renders)
+        const RenderImageColumn = memo(({ startIndex, direction, speed, hiddenOnMobile }) => {
+            // Slice 7 images per column, then duplicate them so the CSS loop is seamless
+            const colImages = bgImages.slice(startIndex, startIndex + 7);
+            const loopingImages = [...colImages, ...colImages];
+            
+            return (
+                <div className={`flex-1 flex flex-col gap-6 ${hiddenOnMobile ? 'hidden lg:flex' : 'flex'}`}>
+                    <div 
+                        className="flex flex-col gap-6 w-full" 
+                        style={{ animation: `scroll-${direction} ${speed}s linear infinite` }}
+                    >
+                        {loopingImages.map((src, idx) => (
+                            <div key={idx} className="w-full relative rounded-2xl overflow-hidden shadow-lg border border-slate-700/30">
+                                <img 
+                                    src={src} 
+                                    alt="" 
+                                    className="w-full h-auto object-cover opacity-60 hover:opacity-100 transition-opacity duration-300" 
+                                    loading="lazy"
+                                />
+                                {/* Subtle gradient overlay to blend into the dark theme */}
+                                <div className="absolute inset-0 bg-slate-900/30 mix-blend-multiply"></div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            );
+        });
+
         function App() {
             const [inputValue, setInputValue] = useState('');
             const [isUnlocked, setIsUnlocked] = useState(false);
             const [isUnlocking, setIsUnlocking] = useState(false);
             const [showError, setShowError] = useState(false);
+            const [bgLoaded, setBgLoaded] = useState(false); // New state for the dramatic fade-in
             
             // Stacked Carousel State
             const [currentIndex, setCurrentIndex] = useState(0);
@@ -81,6 +137,12 @@
 
             // The magic phrase to unlock the hub
             const secretPhrase = "hello charchee";
+
+            useEffect(() => {
+                // Give the images a 500ms head start to load before beginning a long, slow 4-second fade in
+                const timer = setTimeout(() => setBgLoaded(true), 500);
+                return () => clearTimeout(timer);
+            }, []);
 
             useEffect(() => {
                 // Check if the input matches the secret phrase (ignoring case and extra spaces)
@@ -172,9 +234,26 @@
 
             return (
                 <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 font-sans relative overflow-hidden">
-                    {/* Slate & Orange Background Effects */}
-                    <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-slate-800/30 rounded-full blur-[120px] pointer-events-none" />
-                    <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-orange-900/10 rounded-full blur-[150px] pointer-events-none" />
+                    {/* Dark Slate & Orange Global Background Effects */}
+                    <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-slate-800/30 rounded-full blur-[120px] pointer-events-none z-0" />
+                    <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-orange-900/10 rounded-full blur-[150px] pointer-events-none z-0" />
+
+                    {/* Infinite Scrolling Background (Only visible on Lock Screen) */}
+                    <div 
+                        className={`absolute inset-0 z-0 overflow-hidden pointer-events-none flex justify-center gap-4 sm:gap-6 lg:gap-8 px-4 sm:px-12 transition-opacity ease-in-out ${(!isUnlocked && !isUnlocking) ? 'duration-[4000ms]' : 'duration-1000'}`}
+                        style={{ 
+                            opacity: (!isUnlocked && !isUnlocking) && bgLoaded ? 0.35 : 0,
+                            // Fades the top and bottom of the scrolling grid to transparent
+                            maskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)',
+                            WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 15%, black 85%, transparent)'
+                        }}
+                    >
+                        <RenderImageColumn startIndex={0} direction="up" speed="50" />
+                        <RenderImageColumn startIndex={7} direction="down" speed="65" />
+                        <RenderImageColumn startIndex={14} direction="up" speed="45" />
+                        <RenderImageColumn startIndex={21} direction="down" speed="55" hiddenOnMobile={true} />
+                        <RenderImageColumn startIndex={28} direction="up" speed="60" hiddenOnMobile={true} />
+                    </div>
 
                     {/* Main Content Area */}
                     <div className="z-10 w-full max-w-5xl transition-all duration-700 ease-in-out">
@@ -213,7 +292,7 @@
                                 )}
 
                                 <div 
-                                    className={`relative flex flex-col items-center justify-center w-80 h-80 sm:w-96 sm:h-96 text-center overflow-hidden z-20 rounded-full ${isUnlocking ? 'bg-transparent border-[8px] border-orange-500 shadow-[0_0_100px_rgba(249,115,22,0.8),inset_0_0_100px_rgba(249,115,22,0.8)]' : 'bg-gradient-to-br from-slate-700 via-slate-900 to-slate-950 border-[8px] border-slate-600 border-t-slate-500 border-b-slate-800 border-l-slate-600 border-r-slate-700 shadow-[inset_0_10px_40px_rgba(0,0,0,0.9),0_0_50px_rgba(15,23,42,0.5)]'}`}
+                                    className={`relative flex flex-col items-center justify-center w-80 h-80 sm:w-96 sm:h-96 text-center overflow-hidden z-20 rounded-full ${isUnlocking ? 'bg-transparent border-[8px] border-orange-500 shadow-[0_0_100px_rgba(249,115,22,0.8),inset_0_0_100px_rgba(249,115,22,0.8)]' : 'bg-gradient-to-br from-slate-700 via-slate-900 to-slate-950 border-[8px] border-slate-600 border-t-slate-500 border-b-slate-800 border-l-slate-600 border-r-slate-700 shadow-[inset_0_10px_40px_rgba(0,0,0,0.9),0_0_50px_rgba(15,23,42,0.8)] backdrop-blur-sm'}`}
                                     style={{
                                         transition: 'transform 1.5s ease-in, opacity 1s ease-in 0.5s, box-shadow 0.5s ease-out, border-color 0.5s ease-out',
                                         transform: isUnlocking ? 'scale(15)' : 'scale(1)',
@@ -374,7 +453,7 @@
                                             <button 
                                                 key={i} 
                                                 onClick={() => setCurrentIndex(i)}
-                                                className={`h-2.5 rounded-full transition-all duration-500 ${i === currentIndex ? 'bg-orange-500 w-8 shadow-[0_0_10px_rgba(249,115,22,0.8)]' : 'bg-slate-700 w-2.5 hover:bg-slate-500'}`}
+                                                className={`h-2.5 rounded-full transition-all duration-500 ${i === currentIndex ? 'bg-[#fca311] w-8 shadow-[0_0_10px_rgba(252,163,17,0.8)]' : 'bg-slate-700 w-2.5 hover:bg-slate-500'}`}
                                                 aria-label={`Go to portal ${i + 1}`}
                                             />
                                         ))}
